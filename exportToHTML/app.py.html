@@ -1,0 +1,104 @@
+<html>
+<head>
+<title>app.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #6a8759;}
+.s3 { color: #808080;}
+.s4 { color: #6897bb;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+app.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">flask </span><span class="s0">import </span><span class="s1">Flask</span><span class="s0">, </span><span class="s1">render_template</span><span class="s0">, </span><span class="s1">request</span><span class="s0">,</span><span class="s1">jsonify</span>
+<span class="s0">from </span><span class="s1">flask_cors </span><span class="s0">import </span><span class="s1">CORS</span><span class="s0">,</span><span class="s1">cross_origin</span>
+<span class="s0">import </span><span class="s1">requests</span>
+<span class="s0">from </span><span class="s1">bs4 </span><span class="s0">import </span><span class="s1">BeautifulSoup </span><span class="s0">as </span><span class="s1">bs</span>
+<span class="s0">from </span><span class="s1">urllib.request </span><span class="s0">import </span><span class="s1">urlopen </span><span class="s0">as </span><span class="s1">uReq</span>
+
+<span class="s1">app = Flask(__name__)</span>
+
+<span class="s1">@app.route(</span><span class="s2">'/'</span><span class="s0">,</span><span class="s1">methods=[</span><span class="s2">'GET'</span><span class="s1">])  </span><span class="s3"># route to display the home page</span>
+<span class="s1">@cross_origin()</span>
+<span class="s0">def </span><span class="s1">homePage():</span>
+    <span class="s0">return </span><span class="s1">render_template(</span><span class="s2">&quot;index.html&quot;</span><span class="s1">)</span>
+
+<span class="s1">@app.route(</span><span class="s2">'/review'</span><span class="s0">,</span><span class="s1">methods=[</span><span class="s2">'POST'</span><span class="s0">,</span><span class="s2">'GET'</span><span class="s1">]) </span><span class="s3"># route to show the review comments in a web UI</span>
+<span class="s1">@cross_origin()</span>
+<span class="s0">def </span><span class="s1">index():</span>
+    <span class="s0">if </span><span class="s1">request.method == </span><span class="s2">'POST'</span><span class="s1">:</span>
+        <span class="s0">try</span><span class="s1">:</span>
+            <span class="s1">searchString = request.form[</span><span class="s2">'content'</span><span class="s1">].replace(</span><span class="s2">&quot; &quot;</span><span class="s0">,</span><span class="s2">&quot;&quot;</span><span class="s1">)</span>
+            <span class="s1">flipkart_url = </span><span class="s2">&quot;https://www.flipkart.com/search?q=&quot; </span><span class="s1">+ searchString</span>
+            <span class="s1">uClient = uReq(flipkart_url)</span>
+            <span class="s1">flipkartPage = uClient.read()</span>
+            <span class="s1">uClient.close()</span>
+            <span class="s1">flipkart_html = bs(flipkartPage</span><span class="s0">, </span><span class="s2">&quot;html.parser&quot;</span><span class="s1">)</span>
+            <span class="s1">bigboxes = flipkart_html.findAll(</span><span class="s2">&quot;div&quot;</span><span class="s0">, </span><span class="s1">{</span><span class="s2">&quot;class&quot;</span><span class="s1">: </span><span class="s2">&quot;_1AtVbE col-12-12&quot;</span><span class="s1">})</span>
+            <span class="s0">del </span><span class="s1">bigboxes[</span><span class="s4">0</span><span class="s1">:</span><span class="s4">3</span><span class="s1">]</span>
+            <span class="s1">box = bigboxes[</span><span class="s4">0</span><span class="s1">]</span>
+            <span class="s1">productLink = </span><span class="s2">&quot;https://www.flipkart.com&quot; </span><span class="s1">+ box.div.div.div.a[</span><span class="s2">'href'</span><span class="s1">]</span>
+            <span class="s1">prodRes = requests.get(productLink)</span>
+            <span class="s1">prodRes.encoding=</span><span class="s2">'utf-8'</span>
+            <span class="s1">prod_html = bs(prodRes.text</span><span class="s0">, </span><span class="s2">&quot;html.parser&quot;</span><span class="s1">)</span>
+            <span class="s1">print(prod_html)</span>
+            <span class="s1">commentboxes = prod_html.find_all(</span><span class="s2">'div'</span><span class="s0">, </span><span class="s1">{</span><span class="s2">'class'</span><span class="s1">: </span><span class="s2">&quot;_16PBlm&quot;</span><span class="s1">})</span>
+
+            <span class="s1">filename = searchString + </span><span class="s2">&quot;.csv&quot;</span>
+            <span class="s1">fw = open(filename</span><span class="s0">, </span><span class="s2">&quot;w&quot;</span><span class="s1">)</span>
+            <span class="s1">headers = </span><span class="s2">&quot;Product, Customer Name, Rating, Heading, Comment </span><span class="s0">\n</span><span class="s2">&quot;</span>
+            <span class="s1">fw.write(headers)</span>
+            <span class="s1">reviews = []</span>
+            <span class="s0">for </span><span class="s1">commentbox </span><span class="s0">in </span><span class="s1">commentboxes:</span>
+                <span class="s0">try</span><span class="s1">:</span>
+                    <span class="s3">#name.encode(encoding='utf-8')</span>
+                    <span class="s1">name = commentbox.div.div.find_all(</span><span class="s2">'p'</span><span class="s0">, </span><span class="s1">{</span><span class="s2">'class'</span><span class="s1">: </span><span class="s2">'_2sc7ZR _2V5EHH'</span><span class="s1">})[</span><span class="s4">0</span><span class="s1">].text</span>
+
+                <span class="s0">except</span><span class="s1">:</span>
+                    <span class="s1">name = </span><span class="s2">'No Name'</span>
+
+                <span class="s0">try</span><span class="s1">:</span>
+                    <span class="s3">#rating.encode(encoding='utf-8')</span>
+                    <span class="s1">rating = commentbox.div.div.div.div.text</span>
+
+
+                <span class="s0">except</span><span class="s1">:</span>
+                    <span class="s1">rating = </span><span class="s2">'No Rating'</span>
+
+                <span class="s0">try</span><span class="s1">:</span>
+                    <span class="s3">#commentHead.encode(encoding='utf-8')</span>
+                    <span class="s1">commentHead = commentbox.div.div.div.p.text</span>
+
+                <span class="s0">except</span><span class="s1">:</span>
+                    <span class="s1">commentHead = </span><span class="s2">'No Comment Heading'</span>
+                <span class="s0">try</span><span class="s1">:</span>
+                    <span class="s1">comtag = commentbox.div.div.find_all(</span><span class="s2">'div'</span><span class="s0">, </span><span class="s1">{</span><span class="s2">'class'</span><span class="s1">: </span><span class="s2">''</span><span class="s1">})</span>
+                    <span class="s3">#custComment.encode(encoding='utf-8')</span>
+                    <span class="s1">custComment = comtag[</span><span class="s4">0</span><span class="s1">].div.text</span>
+                <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e:</span>
+                    <span class="s1">print(</span><span class="s2">&quot;Exception while creating dictionary: &quot;</span><span class="s0">,</span><span class="s1">e)</span>
+
+                <span class="s1">mydict = {</span><span class="s2">&quot;Product&quot;</span><span class="s1">: searchString</span><span class="s0">, </span><span class="s2">&quot;Name&quot;</span><span class="s1">: name</span><span class="s0">, </span><span class="s2">&quot;Rating&quot;</span><span class="s1">: rating</span><span class="s0">, </span><span class="s2">&quot;CommentHead&quot;</span><span class="s1">: commentHead</span><span class="s0">,</span>
+                          <span class="s2">&quot;Comment&quot;</span><span class="s1">: custComment}</span>
+                <span class="s1">reviews.append(mydict)</span>
+            <span class="s0">return </span><span class="s1">render_template(</span><span class="s2">'results.html'</span><span class="s0">, </span><span class="s1">reviews=reviews[</span><span class="s4">0</span><span class="s1">:(len(reviews)-</span><span class="s4">1</span><span class="s1">)])</span>
+        <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e:</span>
+            <span class="s1">print(</span><span class="s2">'The Exception message is: '</span><span class="s0">,</span><span class="s1">e)</span>
+            <span class="s0">return </span><span class="s2">'something is wrong'</span>
+    <span class="s3"># return render_template('results.html')</span>
+
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s0">return </span><span class="s1">render_template(</span><span class="s2">'index.html'</span><span class="s1">)</span>
+
+<span class="s0">if </span><span class="s1">__name__ == </span><span class="s2">&quot;__main__&quot;</span><span class="s1">:</span>
+    <span class="s3">#app.run(host='127.0.0.1', port=8001, debug=True)</span>
+	<span class="s1">app.run(debug=</span><span class="s0">True</span><span class="s1">)</span>
+</pre>
+</body>
+</html>
